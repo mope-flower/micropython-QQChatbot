@@ -96,7 +96,7 @@ plugins/*.py
 
 ### 3. 配置
 
-复制 `config.example.py` 为 `config.py`，填入：
+复制 `config.py`，填入：
 
 - WiFi 名称和密码
 - QQ 机器人 AppID / ClientSecret / OpenID

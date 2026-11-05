@@ -1,6 +1,7 @@
 # ============================================================
 # AI 聊天模块（群聊）
 # 提示词从 config 读
+# 所有时段都允许 AI 回复
 # ============================================================
 
 import gc
@@ -87,15 +88,6 @@ def _get_period():
     if DAY_START <= h < NIGHT_START:
         return "day"
     return "night"
-
-
-def _is_weekend():
-    t = time.localtime(time.time() + 8 * 3600)
-    return t[6] >= 5
-
-
-def _weekend_always_on():
-    return config.AI_WEEKEND_ALWAYS_ON and _is_weekend()
 
 
 # ============================================================
@@ -234,7 +226,7 @@ def _score(content, raw_content):
 
 
 # ============================================================
-# 是否该回（已去掉时段门禁）
+# 是否该回
 # ============================================================
 def _should_reply(msg, period):
     raw_content = msg["content"]
@@ -341,25 +333,36 @@ def _build_messages(content, period, user_openid, username, history, group):
 
 
 # ============================================================
-# 调 API
+# 调 API（OpenAI 兼容）
 # ============================================================
 def _call_api(messages):
     headers = {
-        "Authorization": "Bearer " + config.AI_KEY,
-        "Content-Type":  "application/json; charset=utf-8",
+        "Content-Type": "application/json; charset=utf-8",
     }
+    if config.AI_KEY:
+        headers["Authorization"] = "Bearer " + config.AI_KEY
+
+    extra_headers = getattr(config, 'AI_EXTRA_HEADERS', None)
+    if extra_headers:
+        headers.update(extra_headers)
+
     body = {
         "model":             config.AI_MODEL,
         "messages":          messages,
-        "enable_thinking":   False,
         "temperature":       0.7,
         "top_p":             0.9,
         "max_tokens":        300,
         "frequency_penalty": 0.4,
         "presence_penalty":  0.4,
     }
+
+    extra_body = getattr(config, 'AI_EXTRA_BODY', None)
+    if extra_body:
+        body.update(extra_body)
+
     data = ujson.dumps(body).encode("utf-8")
     gc.collect()
+
     try:
         resp = urequests.post(config.AI_URL, data=data, headers=headers)
         text = resp.text

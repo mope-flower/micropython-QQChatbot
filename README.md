@@ -8,7 +8,7 @@
 
 - 这是一个**个人项目**，不是通用框架，API 和结构可能随时调整
 - 主要面向 **ESP32-S3 N16R8**（8MB PSRAM），其他型号未测试
-- AI 部分依赖外部 API（默认硅基流动），需要自备 Key
+- AI 部分依赖外部 API（OpenAI 兼容格式），需要自备 Key
 - 插件没有沙箱，**只应加载可信的插件**
 
 ## 功能
@@ -31,7 +31,7 @@
 
 ### AI
 
-- 默认模型：Qwen3-8B（硅基流动免费档）
+- 使用 OpenAI 兼容接口，可接入任何兼容此格式的服务
 - 猫娘人设，提示词集中在 `config.py`
 - 区分主人/普通群友，语气不同
 - 关键词触发的数据注入：时间、北京天气
@@ -96,13 +96,7 @@ plugins/*.py
 
 ### 3. 配置
 
-复制 `config.py`，填入：
-
-- WiFi 名称和密码
-- QQ 机器人 AppID / ClientSecret / OpenID
-- 管理员和主人的 openid
-- AI API 地址和 Key
-- 其他提示词（可选）
+直接修改 `config.py`，所有值都需要换成你自己的。
 
 ### 4. 重启
 
@@ -114,7 +108,7 @@ mpremote reset
 
 ## 配置说明
 
-`config.py` 分为两部分：
+`config.py` 分三部分：
 
 ### 基础配置
 
@@ -122,18 +116,66 @@ mpremote reset
 |---|---|
 | `WIFI_SSID` / `WIFI_PASS` | WiFi 凭据 |
 | `APP_ID` / `CLIENT_SECRET` | QQ 开放平台应用凭据 |
-| `BOT_OPENID` | 机器人 openid |
-| `BOT_NAMES` | 机器人昵称，用于识别手打 @ |
+| `BOT_OPENID` / `BOT_NAMES` | 机器人 openid 与昵称 |
 | `ADMIN_USERS` | 管理员 openid 列表 |
-| `MASTER_USERS` | 主人 openid 列表（可与管理員重叠） |
-| `PRIVATE_MASTER_OPENID` | 私聊主人 openid |
-| `AI_URL` / `AI_KEY` / `AI_MODEL` | AI 接口配置 |
+| `MASTER_USERS` | 主人 openid 列表 |
+| `PRIVATE_MASTER_OPENID` | 私聊主人的 user_openid |
 | `AI_ENABLED` | AI 总开关 |
-| `LOG_LEVEL` | 日志级别：DEBUG / INFO / WARNING / ERROR / OFF |
+| `LOG_LEVEL` | DEBUG / INFO / WARNING / ERROR / OFF |
+
+### 获取 openid
+
+群消息的 `member_openid` 和私聊的 `user_openid` 是**两套不同的值**。
+
+**群 openid**：日志里会打印收到的消息，其中 `username` 是昵称。`member_openid` 需要在 `main.py` 里临时加日志，或通过 QQ 开放平台的接口查询。
+
+**私聊 openid**：首次私聊机器人时，日志会打印：
+
+```
+[INFO] main: 私聊: 92366835: '你好'
+```
+
+把完整的 `user_openid` 填入 `PRIVATE_MASTER_OPENID`。
+
+### AI 配置
+
+`config.py` 的 `AI_URL` / `AI_KEY` / `AI_MODEL` 三项，填写任意 OpenAI 兼容服务的地址、Key 和模型名。
+
+**要求**：
+
+- 接口路径通常以 `/v1/chat/completions` 结尾
+- 请求体使用标准 OpenAI 格式（`model`、`messages`、`temperature` 等）
+- 响应体包含 `choices[0].message.content`
+
+**本地模型**（如 Ollama、LM Studio）也兼容：
+
+- `AI_URL` 填 `<IP>:11434/v1/chat/completions` 之类
+- `AI_KEY` 留空，请求不会携带 `Authorization` 头
+
+**额外参数**：
+
+默认请求参数是：
+
+```
+temperature=0.7, top_p=0.9, max_tokens=300,
+frequency_penalty=0.4, presence_penalty=0.4
+```
+
+需要覆盖时，写进 `AI_EXTRA_BODY`：
+
+```python
+AI_EXTRA_BODY = {"temperature": 0.3, "max_tokens": 500}
+```
+
+需要自定义请求头时，写进 `AI_EXTRA_HEADERS`：
+
+```python
+AI_EXTRA_HEADERS = {"X-Custom-Header": "value"}
+```
 
 ### AI 提示词
 
-`config.py` 后半部分是 8 段提示词常量：
+`config.py` 后半部分是 8 段提示词常量，可以按自己的需要修改：
 
 | 常量 | 用途 |
 |---|---|
@@ -146,7 +188,7 @@ mpremote reset
 | `AI_RULE_BASE` | 通用底线 |
 | `AI_PRIVATE_SYSTEM` | 私聊人设 |
 
-提示词拼接逻辑在 `ai.py` 的 `_build_system` 中。
+拼接逻辑在 `ai.py` 的 `_build_system` 中。
 
 ## 插件系统
 
@@ -217,7 +259,7 @@ mpremote reset
 - **单线程**：AI 请求通过 `urequests` 同步执行，会阻塞事件循环数秒。多个群同时触发 AI 时会排队
 - **插件无沙箱**：见上文
 - **记忆不跨设备**：`private_memory.json` 只存在板子上
-- **AI 稳定性依赖模型**：8B 模型在长提示词、复杂指令下可能不稳定
+- **AI 稳定性依赖模型**：小参数模型在长提示词、复杂指令下可能不稳定
 - **私聊需要单独开通权限**：QQ 开放平台需在后台开启单聊权限，且需要独立的 `user_openid`
 
 ## 依赖
@@ -231,7 +273,6 @@ mpremote reset
 - [MicroPython](https://micropython.org/)
 - [vovaman](https://pypi.org/project/micropython-async-websocket-client/) 提供的 WebSocket 实现
 - [Open-Meteo](https://open-meteo.com/) 提供免费天气 API
-- [硅基流动](https://siliconflow.cn/) 提供免费 AI 模型
 
 ## 许可
 

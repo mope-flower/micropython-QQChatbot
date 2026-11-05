@@ -1,5 +1,7 @@
 # ============================================================
-# 配置
+# 配置示例
+#
+# 直接修改本文件即可。所有值都需要换成你自己的。
 # ============================================================
 
 # -------------------- WiFi --------------------
@@ -12,11 +14,11 @@ CLIENT_SECRET = "你的ClientSecret"
 
 # -------------------- 机器人身份 --------------------
 BOT_OPENID = "你的机器人openid"
-BOT_NAMES  = ["小云雪"]
+BOT_NAMES  = ["你的机器人昵称"]
 
 # -------------------- 管理员 --------------------
 ADMIN_USERS = [
-    "管理员1的member_openid",
+    "管理员的member_openid",
 ]
 
 # -------------------- 主人 --------------------
@@ -25,7 +27,7 @@ MASTER_USERS = [
 ]
 
 # -------------------- 私聊主人 --------------------
-PRIVATE_MASTER_OPENID = "你的私聊openid"
+PRIVATE_MASTER_OPENID = "你的私聊user_openid"
 
 # -------------------- AI 开关 --------------------
 AI_ENABLED = True
@@ -38,10 +40,26 @@ LOG_LEVEL = "INFO"
 RECONNECT_TIMEOUT = 30
 WS_CLOSE_TIMEOUT  = 5
 
-# -------------------- AI --------------------
-AI_URL   = "https://api.siliconflow.cn/v1/chat/completions"
-AI_KEY   = "sk-你的key"
-AI_MODEL = "Qwen/Qwen3-8B"
+# ============================================================
+# AI 配置（OpenAI 兼容格式）
+# ============================================================
+# 任何支持 OpenAI chat/completions 格式的服务都可以用。
+# 只需要填写下面三项，代码不用改。
+# 本地模型（如 Ollama）也兼容，AI_KEY 留空即可。
+# --------------------------------------------------------------------
+
+AI_URL   = "你的API地址（完整 chat/completions 路径）"
+AI_KEY   = "你的APIKey"
+AI_MODEL = "你的模型名"
+
+# 额外请求参数（dict），与默认参数合并，同名覆盖。
+# 默认参数：temperature=0.7, top_p=0.9, max_tokens=300,
+#          frequency_penalty=0.4, presence_penalty=0.4
+# 多数情况留空 {} 即可。
+AI_EXTRA_BODY = {}
+
+# 额外请求头（dict），默认空。
+AI_EXTRA_HEADERS = {}
 
 # -------------------- API 地址 --------------------
 TOKEN_URL   = "https://api.bot.qq.com/app/getAppAccessToken"
